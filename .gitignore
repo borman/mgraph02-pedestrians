@@ -4,3 +4,7 @@ Makefile
 *.user
 
 *.o
+*.a
+moc_*
+qrc_*
+*.moc

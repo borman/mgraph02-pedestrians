@@ -40,10 +40,10 @@ class IDLModel: public QAbstractListModel
       int i = index.row();
       switch (role)
       {
-      case X: return m_data[i].rect.x();
-      case Y: return m_data[i].rect.y();
-      case Width: return m_data[i].rect.width();
-      case Height: return m_data[i].rect.height();
+      case X: return m_data[i].rects[0].x();
+      case Y: return m_data[i].rects[0].y();
+      case Width: return m_data[i].rects[0].width();
+      case Height: return m_data[i].rects[0].height();
       case FileName: return m_data[i].name;
       }
       return QVariant();
@@ -124,7 +124,8 @@ int main(int argc, char **argv)
     view.engine()->addImageProvider(QLatin1String("src"), new IDLImageProviderSrc(srcDir));
     view.engine()->addImageProvider(QLatin1String("grad"), new IDLImageProviderGrad(srcDir));
     view.setSource(QUrl("qrc:///idlviewer.qml"));
-    //view.rootContext()->setBaseUrl(QUrl::fromLocalFile("."));
+    view.setResizeMode(QDeclarativeView::SizeRootObjectToView);
+    view.resize(640, 480);
     view.show();
 
     return app.exec();

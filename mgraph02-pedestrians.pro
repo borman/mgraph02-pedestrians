@@ -1,3 +1,3 @@
 TEMPLATE = subdirs
 
-SUBDIRS = tools/idlviewer
+SUBDIRS = 3rdparty/liblinear tools/idlviewer tools/train
