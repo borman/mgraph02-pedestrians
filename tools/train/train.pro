@@ -17,14 +17,16 @@ HEADERS += idl.h \
     histogram.h \
     colorcorrect.h \
     ../../src/gradhistogram.h \
-    ../../src/hog.h
+    ../../src/hog.h \
+    ../../src/classify.h
 SOURCES += idl.cpp \
     gradient.cpp \
     histogram.cpp \
     colorcorrect.cpp \
     ../../src/gradhistogram.cpp \
     ../../src/hog.cpp \
-    ../../src/main_train.cpp
+    ../../src/main_train.cpp \
+    ../../src/classify.cpp
 
 # liblinear dependency
 
@@ -33,12 +35,14 @@ else:win32:CONFIG(debug, debug|release): LIBS += -L$$OUT_PWD/../../3rdparty/libl
 else:symbian: LIBS += -llinear
 else:unix: LIBS += -L$$OUT_PWD/../../3rdparty/liblinear/ -llinear
 
-INCLUDEPATH += $$PWD/../../3rdparty/liblinear
-DEPENDPATH += $$PWD/../../3rdparty/liblinear
+INCLUDEPATH += $$PWD/../../3rdparty/liblinear/liblinear-1.8
+DEPENDPATH += $$PWD/../../3rdparty/liblinear/liblinear-1.8
 
 win32:CONFIG(release, debug|release): PRE_TARGETDEPS += $$OUT_PWD/../../3rdparty/liblinear/release/linear.lib
 else:win32:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$OUT_PWD/../../3rdparty/liblinear/debug/linear.lib
 else:unix:!symbian: PRE_TARGETDEPS += $$OUT_PWD/../../3rdparty/liblinear/liblinear.a
+
+
 
 
 
