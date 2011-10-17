@@ -107,7 +107,7 @@ int main(int argc, char **argv)
   try
   {
     srcDir = QFileInfo(argv[1]).dir();
-    QList<IDL::Entry> objects = IDL::load(argv[1]);
+    QList<IDL::Entry> objects = IDL::load(srcDir, argv[1]);
 
     DescriptorConsumer consumer(QtConcurrent::mapped(objects, makeDescriptor));
 

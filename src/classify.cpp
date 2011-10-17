@@ -1,3 +1,5 @@
+#include <cmath>
+
 #include <QString>
 #include <QPainter>
 
@@ -33,7 +35,7 @@ Model *Model::train(QList<QVector<double> > bg, QList<QVector<double> > peds)
 
   struct parameter param;
   param.solver_type = L2R_L2LOSS_SVC_DUAL;
-  param.C = 1;
+  param.C = 10;
   param.eps = 1e-4;
   param.nr_weight = 0;
   param.weight_label = NULL;
@@ -87,6 +89,11 @@ Model::Object::Object(const QVector<double> &v)
   last().index = -1;
 }
 
+double compress(double x)
+{
+  return x<0? -sqrt(-x) : sqrt(x);
+}
+
 QImage Model::probMap(const QImage &img)
 {
   QImage map(img.width(), img.height(), QImage::Format_ARGB32);
@@ -100,7 +107,7 @@ QImage Model::probMap(const QImage &img)
   double lower = -0.1;
   for (int x=0; x<ps.size(); x++)
   {
-    ps[x] = predict(hog.serialize(x, 0, 10, hog.height()));
+    ps[x] = compress(predict(hog.serialize(x, 0, 10, hog.height())));
     upper = qMax(upper, ps[x]);
     lower = qMin(lower, ps[x]);
   }
@@ -116,4 +123,38 @@ QImage Model::probMap(const QImage &img)
   p.end();
 
   return map;
+}
+
+template<typename T>
+int findMax(const QVector<T> &v)
+{
+  int r = 0;
+  for (int i=1; i<v.size(); i++)
+    if (v[r] < v[i])
+      r = i;
+  return r;
+}
+
+QList<QRect> Model::detect(const QImage &img)
+{
+  HOG hog(gradient(img, QRect(0, 0, img.width(), img.height())));
+  hog.normalize();
+
+  QVector<double> ps(hog.width()-9);
+  for (int x=0; x<ps.size(); x++)
+    ps[x] = predict(hog.serialize(x, 0, 10, hog.height()));
+
+  double threshold = 0.1;
+  QList<QRect> rects;
+  int maxIndex;
+  while (ps[maxIndex = findMax(ps)] >= threshold)
+  {
+    rects << QRect(maxIndex*8, 0, 80, 200);
+    int p1 = qMax(0, maxIndex-9);
+    int p2 = qMin(maxIndex+9, ps.size());
+    for (int i=p1; i<p2; i++)
+      ps[i] = -500;
+  }
+
+  return rects;
 }

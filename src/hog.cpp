@@ -42,9 +42,9 @@ HOG &HOG::normalize()
       double norm = 0;
 
       int x1 = qMax(0, x-hsize);
-      int y1 = qMax(0, x-hsize);
+      int y1 = qMax(0, y-hsize);
       int x2 = qMin(x+hsize+1, width());
-      int y2 = qMin(x+hsize+1, height());
+      int y2 = qMin(y+hsize+1, height());
 
       for (int py=y1; py<y2; py++)
         for (int px=x1; px<x2; px++)

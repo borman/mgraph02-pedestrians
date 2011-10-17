@@ -21,6 +21,7 @@ public:
   static Model *load(const QString &filename);
 
   QImage probMap(const QImage &img);
+  QList<QRect> detect(const QImage &img);
 
   double predict(const Object &obj);
 

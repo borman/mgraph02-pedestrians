@@ -14,48 +14,80 @@
 #include "colorcorrect.h"
 #include "classify.h"
 
-Model *classifier = 0;
-
 class DataSetModel: public QAbstractListModel
 {
   Q_OBJECT
 public:
   struct Item
   {
+    QString name;
     QImage baseImage;
     QImage gradient;
     QImage probMap;
     QList<QRect> peds;
+    QList<QRect> hits;
   };
 
-  DataSetModel(const QFuture<Item> &items)
-    : m_fut(items)
-  {
-    QFutureWatcher<Item> *w = new QFutureWatcher<Item>(this);
-    w->setFuture(m_fut);
-    connect(w, SIGNAL(progressValueChanged(int)), SLOT(onProgress(int)));
-  }
+  DataSetModel(QObject *parent = 0) : QAbstractListModel(parent) {}
 
   QVariant data(const QModelIndex &index, int role) const { return QVariant(); }
-  int rowCount(const QModelIndex &parent) const { return m_items.size(); }
+  int rowCount(const QModelIndex &parent = QModelIndex()) const { return m_items.size(); }
 
   const Item &itemAt(int i) const { return m_items[i]; }
 
-private slots:
-  void onProgress(int progress)
+  void clear()
   {
-    int oldSize = m_items.size();
-    int newSize = m_fut.resultCount();
-    beginInsertRows(QModelIndex(), oldSize, newSize-1);
-    for (int i=oldSize; i<newSize; i++)
-      m_items << m_fut.resultAt(i);
+    beginResetModel();
+    m_items.clear();
+    endResetModel();
+  }
+
+  void append(const Item &item)
+  {
+    beginInsertRows(QModelIndex(), m_items.size(), m_items.size());
+    m_items << item;
     endInsertRows();
   }
 
 private:
-  QFuture<Item> m_fut;
   QList<Item> m_items;
 };
+
+
+
+class DataSetModelPopulator: public QObject
+{
+  Q_OBJECT
+public:
+  DataSetModelPopulator(DataSetModel *mdl)
+    : QObject(mdl)
+  {
+    m_watcher = new QFutureWatcher<DataSetModel::Item>(this);
+    connect(m_watcher, SIGNAL(progressValueChanged(int)), SLOT(onProgress(int)));
+  }
+
+  void setFuture(const QFuture<DataSetModel::Item> &fut)
+  {
+    DataSetModel *mdl = static_cast<DataSetModel *>(parent());
+    mdl->clear();
+    m_watcher->setFuture(fut);
+  }
+
+private slots:
+  void onProgress(int progress)
+  {
+    DataSetModel *mdl = static_cast<DataSetModel *>(parent());
+    int oldSize = mdl->rowCount();
+    int newSize = m_watcher->future().resultCount();
+    for (int i=oldSize; i<newSize; i++)
+      mdl->append(m_watcher->future().resultAt(i));
+  }
+
+private:
+  QFutureWatcher<DataSetModel::Item> *m_watcher;
+};
+
+
 
 class DataSetItemDelegate: public QStyledItemDelegate
 {
@@ -73,7 +105,7 @@ public:
 
     painter->drawImage(base, item.baseImage);
 
-    painter->setOpacity(0.7);
+    painter->setOpacity(0.5);
     painter->drawImage(base, item.gradient);
 
     painter->setOpacity(0.5);
@@ -83,6 +115,16 @@ public:
     painter->setPen(QPen(Qt::green, 2));
     foreach (const QRect &r, item.peds)
       painter->drawRect(r.translated(base).adjusted(0, -5, 0, 5));
+
+    painter->setPen(QPen(Qt::blue, 2));
+    foreach (const QRect &r, item.hits)
+      painter->drawRect(r.translated(base).adjusted(0, -3, 0, 3));
+
+    painter->setPen(Qt::white);
+    painter->setFont(QFont("Sans", 16, QFont::Bold));
+    painter->drawText(option.rect.adjusted(10, 10, -10, -10),
+                      Qt::AlignLeft | Qt::AlignTop,
+                      item.name);
 
     painter->restore();
   }
@@ -96,10 +138,15 @@ private:
   DataSetModel *m_mdl;
 };
 
+
+
+Model *classifier = 0;
+
 DataSetModel::Item loadImage(const IDL::Entry &e)
 {
   DataSetModel::Item item;
 
+  item.name = e.name;
   item.baseImage.load(e.filename);
 
   QRect rect(0, 0, item.baseImage.width(), item.baseImage.height());
@@ -108,6 +155,8 @@ DataSetModel::Item loadImage(const IDL::Entry &e)
 
   item.probMap = classifier->probMap(item.baseImage);
   item.peds = e.rects;
+
+  item.hits = classifier->detect(item.baseImage);
 
   return item;
 }
@@ -125,12 +174,13 @@ int main(int argc, char **argv)
   try
   {
     QDir srcDir = QFileInfo(argv[1]).dir();
-    QList<IDL::Entry> entries = IDL::load(argv[1]);
+    QList<IDL::Entry> entries = IDL::load(srcDir, argv[1]);
+    qSort(entries);
 
     classifier = Model::load("model.txt");
     Q_ASSERT(classifier != 0);
 
-    DataSetModel mdl(QtConcurrent::mapped(entries, loadImage));
+    DataSetModel mdl;
 
     QListView view;
     view.setModel(&mdl);
@@ -138,6 +188,9 @@ int main(int argc, char **argv)
     view.setUniformItemSizes(true);
     view.setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     view.show();
+
+    DataSetModelPopulator loader(&mdl);
+    loader.setFuture(QtConcurrent::mapped(entries, loadImage));
 
     return app.exec();
   }
