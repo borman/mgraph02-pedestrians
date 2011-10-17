@@ -18,3 +18,17 @@ void GradHistogram::add(double phi, double r)
   m_buckets[p1] += r*(1-k);
   m_buckets[p2] += r*k;
 }
+
+double GradHistogram::norm() const
+{
+  double r = 0;
+  foreach(double h, m_buckets)
+    r += h;
+  return r;
+}
+
+GradHistogram & GradHistogram::operator *=(double k)
+{
+  for (int i=0; i<m_buckets.size(); i++)
+    m_buckets[i] *= k;
+}

@@ -11,6 +11,9 @@ public:
 
   void add(double phi, double r);
   QVector<double> data() const { return m_buckets; }
+
+  double norm() const;
+  GradHistogram &operator *=(double k);
 private:
   QVector<double> m_buckets;
 };

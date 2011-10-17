@@ -4,11 +4,22 @@
 #include <QList>
 #include <QVector>
 
+#include "linear.h"
+
 class Model
 {
 public:
+  class Object: public QVector<feature_node>
+  {
+    public:
+      Object(const QVector<double> &v);
+  };
+
   ~Model();
   static Model *train(QList<QVector<double> > bg, QList<QVector<double> > peds);
+  static Model *load(const QString &filename);
+
+  double predict(const Object &obj);
 
   void save(const QString &filename);
 private:

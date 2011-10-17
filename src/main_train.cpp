@@ -83,13 +83,13 @@ DescriptorConsumer::Result makeDescriptor(const IDL::Entry &e)
         break;
       }
     if (goodRect)
-      bgSamples << HOG(gradient(img, bgRect)).serialize();
+      bgSamples << HOG(gradient(img, bgRect)).normalize().serialize();
     bgRect.translate(60, 0);
   }
 
   QList<QVector<double> > pedSamples;
   foreach (const QRect &r, e.rects)
-    pedSamples << HOG(gradient(img, r.adjusted(0, 0, -1, -1))).serialize();
+    pedSamples << HOG(gradient(img, r.adjusted(0, 0, -1, -1))).normalize().serialize();
 
   return qMakePair(bgSamples, pedSamples);
 }
@@ -100,7 +100,7 @@ int main(int argc, char **argv)
 
   if (argc < 2)
   {
-    qWarning() << "No arguments supplied";
+    qWarning() << QObject::tr("No arguments supplied");
     return 1;
   }
 
@@ -115,7 +115,7 @@ int main(int argc, char **argv)
   }
   catch (const QString &e)
   {
-    qWarning() << "Fatal exception: " << e;
+    qWarning() << QObject::tr("Fatal exception: %1").arg(e);
 
     return 1;
   }

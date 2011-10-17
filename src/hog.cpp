@@ -1,6 +1,8 @@
+#include <cmath>
 #include "hog.h"
 
 const int BLOCK_SIZE = 8;
+const int CLUSTER_SIZE = 3;
 const int HIST_SIZE = 9;
 
 HOG::HOG(const Matrix<Polar> &gr)
@@ -19,12 +21,41 @@ HOG::HOG(const Matrix<Polar> &gr)
     }
 }
 
-QVector<double> HOG::serialize() const
+QVector<double> HOG::serialize(int x1, int y1, int w, int h) const
 {
   QVector<double> res;
-  res.reserve(HIST_SIZE * width() * height());
+  res.reserve(HIST_SIZE * w * h);
+  for (int y=0; y<h; y++)
+    for (int x=0; x<w; x++)
+      res += at(x1+x, y1+y).data();
+  return res;
+}
+
+HOG &HOG::normalize()
+{
+  Matrix<double> coeffs(width(), height());
+  const int hsize = (CLUSTER_SIZE - 1)/2;
+
   for (int y=0; y<height(); y++)
     for (int x=0; x<width(); x++)
-      res += at(x, y).data();
-  return res;
+    {
+      double norm = 0;
+
+      int x1 = qMax(0, x-hsize);
+      int y1 = qMax(0, x-hsize);
+      int x2 = qMin(x+hsize+1, width());
+      int y2 = qMin(x+hsize+1, height());
+
+      for (int py=y1; py<y2; py++)
+        for (int px=x1; px<x2; px++)
+          norm += at(px, py).norm();
+
+      coeffs.at(x, y) = 1/sqrt(norm + 1e-8);
+    }
+
+  for (int y=0; y<height(); y++)
+    for (int x=0; x<width(); x++)
+      at(x, y) *= coeffs.at(x, y);
+
+  return *this;
 }

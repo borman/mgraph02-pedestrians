@@ -26,7 +26,7 @@ Model *Model::train(QList<QVector<double> > bg, QList<QVector<double> > peds)
       prob.x[i][j].index = j+1;
       prob.x[i][j].value = (i < bg.size())? bg[i][j] : peds[i-bg.size()][j];
     }
-    prob.y[i] = (i < bg.size())? -1 : 1;
+    prob.y[i] = (i < bg.size())? 1 : -1;
   }
 
   struct parameter param;
@@ -56,4 +56,31 @@ Model::~Model()
 void Model::save(const QString &filename)
 {
   ::save_model(filename.toUtf8().constData(), m_model);
+}
+
+Model *Model::load(const QString &filename)
+{
+  struct model *mdl = load_model(filename.toUtf8().constData());
+  if (mdl)
+    return new Model(mdl);
+  else
+    return 0;
+}
+
+double Model::predict(const Model::Object &obj)
+{
+  double est[2];
+  ::predict_values(m_model, obj.constData(), est);
+  return -est[0];
+}
+
+Model::Object::Object(const QVector<double> &v)
+  : QVector<feature_node>(v.size()+1)
+{
+  for (int i=0; i<v.size(); i++)
+  {
+    (*this)[i].index = 1+i;
+    (*this)[i].value = v[i];
+  }
+  last().index = -1;
 }

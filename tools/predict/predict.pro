@@ -1,4 +1,4 @@
-TARGET = train
+TARGET = predict
 
 TEMPLATE = app
 CONFIG += silent
@@ -25,7 +25,7 @@ SOURCES += idl.cpp \
     colorcorrect.cpp \
     gradhistogram.cpp \
     hog.cpp \
-    main_train.cpp \
+    main_predict.cpp \
     classify.cpp
 
 # liblinear dependency
@@ -41,6 +41,7 @@ DEPENDPATH += $$PWD/../../3rdparty/liblinear/liblinear-1.8
 win32:CONFIG(release, debug|release): PRE_TARGETDEPS += $$OUT_PWD/../../3rdparty/liblinear/release/linear.lib
 else:win32:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$OUT_PWD/../../3rdparty/liblinear/debug/linear.lib
 else:unix:!symbian: PRE_TARGETDEPS += $$OUT_PWD/../../3rdparty/liblinear/liblinear.a
+
 
 
 
