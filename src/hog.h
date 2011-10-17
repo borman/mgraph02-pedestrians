@@ -8,7 +8,7 @@
 class HOG: public Matrix<GradHistogram>
 {
   public:
-    HOG(const Matrix<Polar> &gr);
+    HOG(const Matrix<Polar> &gr, const QRect &rect);
 
     HOG &normalize();
 

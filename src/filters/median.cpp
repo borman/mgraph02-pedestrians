@@ -1,7 +1,7 @@
 #include <cmath>
 #include <QtAlgorithms>
 
-#include "convolution.h"
+#include "median.h"
 #include "rgbv.h"
 
 static inline QRgb &pixel(QImage &img, int x, int y)
@@ -26,64 +26,6 @@ static QImage grow(const QImage &img, int size)
     }
   return res;
 }
-
-static QRgb apply(const QImage &img, const Matrix<double> &m, int x, int y)
-{
-  RGBV acc;
-  int size = (m.size()-1)/2;
-  for (int dy=0; dy<m.size(); dy++)
-    for (int dx=0; dx<m.size(); dx++)
-      acc.addk(pixel(img, x+dx-size, y+dy-size), m.at(dx, dy));
-  acc.clamp();
-  return acc.toQRgb();
-}
-
-void convolve(QImage &img, const QRect &rect, const Matrix<double> &m)
-{
-  int size = (m.size()-1)/2;
-  QImage tmp = grow(img, size);
-
-  for (int y=rect.top(); y<=rect.bottom(); y++)
-    for (int x=rect.left(); x<=rect.right(); x++)
-      pixel(img, x, y) = apply(tmp, m, x+size, y+size);
-}
-
-// ===========
-
-Matrix<double> gaussian(int size, double sigma)
-{
-  Matrix<double> m(size*2+1);
-  double k1 = 2*sigma*sigma;
-  double sum = 0;
-  for (int y=0; y<m.size(); y++)
-    for (int x=0; x<m.size(); x++)
-    {
-      m.set(x, y, exp(-((x-size)*(x-size) + (y-size)*(y-size))/k1));
-      sum += m.at(x, y);
-    }
-
-  // Normalize
-  for (int y=0; y<m.size(); y++)
-    for (int x=0; x<m.size(); x++)
-      m.set(x, y, m.at(x, y)/sum);
-
-  return m;
-}
-
-Matrix<double> unsharp(int size, double sigma, double alpha)
-{
-  Matrix<double> m = gaussian(size, sigma);
-
-  for (int y=0; y<m.size(); y++)
-    for (int x=0; x<m.size(); x++)
-      m.set(x, y, -alpha * m.at(x, y));
-
-  m.set(size, size, m.at(size, size) + 1 + alpha); // Add identity
-
-  return m;  
-}
-
-// ==========
 
 static uchar findMedian(uchar *vs, int size)
 {

@@ -11,6 +11,7 @@
 
 #include "idl.h"
 #include "gradient.h"
+#include "median.h"
 #include "colorcorrect.h"
 #include "hog.h"
 #include "classify.h"
@@ -70,6 +71,8 @@ QDir srcDir;
 DescriptorConsumer::Result makeDescriptor(const IDL::Entry &e)
 {
   QImage img(srcDir.filePath(e.name + ".png"));
+  //median(img, img.rect(), 3);
+  Matrix<Polar> gr = gradient(img, img.rect());
 
   QList<QVector<double> > bgSamples;
   QRect bgRect(0, 0, 80, 200);
@@ -83,13 +86,13 @@ DescriptorConsumer::Result makeDescriptor(const IDL::Entry &e)
         break;
       }
     if (goodRect)
-      bgSamples << HOG(gradient(img, bgRect)).normalize().serialize();
+      bgSamples << HOG(gr, bgRect).normalize().serialize();
     bgRect.translate(60, 0);
   }
 
   QList<QVector<double> > pedSamples;
   foreach (const QRect &r, e.rects)
-    pedSamples << HOG(gradient(img, r.adjusted(0, 0, -1, -1))).normalize().serialize();
+    pedSamples << HOG(gr, r.adjusted(0, 0, -1, -1)).normalize().serialize();
 
   return qMakePair(bgSamples, pedSamples);
 }

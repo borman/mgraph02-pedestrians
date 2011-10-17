@@ -97,9 +97,10 @@ double compress(double x)
 QImage Model::probMap(const QImage &img)
 {
   QImage map(img.width(), img.height(), QImage::Format_ARGB32);
+
   map.fill(qRgba(0, 0, 0, 0));
 
-  HOG hog(gradient(img, QRect(0, 0, img.width(), img.height())));
+  HOG hog(gradient(img, img.rect()), img.rect());
   hog.normalize();
 
   QVector<double> ps(hog.width()-9);
@@ -137,7 +138,7 @@ int findMax(const QVector<T> &v)
 
 QList<QRect> Model::detect(const QImage &img)
 {
-  HOG hog(gradient(img, QRect(0, 0, img.width(), img.height())));
+  HOG hog(gradient(img, img.rect()), img.rect());
   hog.normalize();
 
   QVector<double> ps(hog.width()-9);

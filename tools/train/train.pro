@@ -18,7 +18,8 @@ HEADERS += idl.h \
     colorcorrect.h \
     gradhistogram.h \
     hog.h \
-    classify.h
+    classify.h \
+    ../../src/filters/median.h
 SOURCES += idl.cpp \
     gradient.cpp \
     histogram.cpp \
@@ -26,7 +27,8 @@ SOURCES += idl.cpp \
     gradhistogram.cpp \
     hog.cpp \
     main_train.cpp \
-    classify.cpp
+    classify.cpp \
+    ../../src/filters/median.cpp
 
 # liblinear dependency
 
@@ -41,6 +43,8 @@ DEPENDPATH += $$PWD/../../3rdparty/liblinear/liblinear-1.8
 win32:CONFIG(release, debug|release): PRE_TARGETDEPS += $$OUT_PWD/../../3rdparty/liblinear/release/linear.lib
 else:win32:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$OUT_PWD/../../3rdparty/liblinear/debug/linear.lib
 else:unix:!symbian: PRE_TARGETDEPS += $$OUT_PWD/../../3rdparty/liblinear/liblinear.a
+
+
 
 
 
