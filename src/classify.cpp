@@ -1,7 +1,9 @@
 #include <QString>
+#include <QPainter>
 
 #include "linear.h"
 
+#include "hog.h"
 #include "classify.h"
 
 
@@ -83,4 +85,35 @@ Model::Object::Object(const QVector<double> &v)
     (*this)[i].value = v[i];
   }
   last().index = -1;
+}
+
+QImage Model::probMap(const QImage &img)
+{
+  QImage map(img.width(), img.height(), QImage::Format_ARGB32);
+  map.fill(qRgba(0, 0, 0, 0));
+
+  HOG hog(gradient(img, QRect(0, 0, img.width(), img.height())));
+  hog.normalize();
+
+  QVector<double> ps(hog.width()-9);
+  double upper = 0.1;
+  double lower = -0.1;
+  for (int x=0; x<ps.size(); x++)
+  {
+    ps[x] = predict(hog.serialize(x, 0, 10, hog.height()));
+    upper = qMax(upper, ps[x]);
+    lower = qMin(lower, ps[x]);
+  }
+
+  QPainter p;
+  p.begin(&map);
+  for (int x=0; x<ps.size()-9; x++)
+    p.fillRect(x*8, 0, 80, map.height(),
+               QColor(qMin(0.0, ps[x])*255.0/lower,
+                      qMax(0.0, ps[x])*255.0/upper,
+                      0,
+                      ps[x]>0? 100 : 40));
+  p.end();
+
+  return map;
 }

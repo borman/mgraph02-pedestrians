@@ -16,8 +16,6 @@ QList<IDL::Entry> IDL::load(const QString &filename)
   if (!f.open(QIODevice::ReadOnly))
     throw QObject::tr("Could not open file %1").arg(filename);
 
-  //QDir imageDir = QFileInfo(filename).dir();
-
   QTextStream fin(&f);
   EHash eHash;
   while (fin.skipWhiteSpace(), !fin.atEnd())
@@ -30,13 +28,13 @@ QList<IDL::Entry> IDL::load(const QString &filename)
       throw QObject::tr("Error reading file %1").arg(filename);
 
     eHash[item] << QRect(x0, y0, x1-x0+1, y1-y0+1);
-    //QString itemFilename = imageDir.filePath(item + ".png");
-    //res << Entry(item, QRect(x0, y0, x1-x0+1, y1-y0+1));
   }
+
+  QDir imageDir = QFileInfo(filename).dir();
 
   QList<Entry> res;
   for (EHash::iterator it = eHash.begin(); it!=eHash.end(); ++it)
-    res << Entry(it.key(), it.value());
+    res << Entry(it.key(), imageDir.filePath(it.key() + ".png"), it.value());
   
   return res;
 }

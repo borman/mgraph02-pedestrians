@@ -3,6 +3,7 @@
 
 #include <QList>
 #include <QVector>
+#include <QImage>
 
 #include "linear.h"
 
@@ -18,6 +19,8 @@ public:
   ~Model();
   static Model *train(QList<QVector<double> > bg, QList<QVector<double> > peds);
   static Model *load(const QString &filename);
+
+  QImage probMap(const QImage &img);
 
   double predict(const Object &obj);
 

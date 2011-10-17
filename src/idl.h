@@ -9,10 +9,11 @@ namespace IDL
 {
   struct Entry
   {
-    Entry(const QString &_n, const QList<QRect> &_rs)
-      : name(_n), rects(_rs) {}
+    Entry(const QString &_name, const QString &_filename, const QList<QRect> &_rects)
+      : name(_name), filename(_filename), rects(_rects) {}
 
     QString name;
+    QString filename;
     QList<QRect> rects;
   };
 

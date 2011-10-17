@@ -1,107 +1,116 @@
 #include <QApplication>
-#include <QAbstractListModel>
 #include <QDir>
 #include <QDebug>
-#include <QDeclarativeView>
-#include <QDeclarativeContext>
-#include <QDeclarativeEngine>
-#include <QDeclarativeImageProvider>
+#include <QtConcurrentMap>
+#include <QFuture>
+#include <QFutureWatcher>
+#include <QAbstractListModel>
+#include <QListView>
+#include <QStyledItemDelegate>
+#include <QPainter>
 
 #include "idl.h"
 #include "gradient.h"
 #include "colorcorrect.h"
+#include "classify.h"
 
-class IDLModel: public QAbstractListModel
+Model *classifier = 0;
+
+class DataSetModel: public QAbstractListModel
 {
-  public:
-    enum Role
-    {
-      X = Qt::UserRole + 1,
-      Y = Qt::UserRole + 2,
-      Height = Qt::UserRole + 3,
-      Width = Qt::UserRole + 4,
-      FileName = Qt::UserRole + 5
-    };
+  Q_OBJECT
+public:
+  struct Item
+  {
+    QImage baseImage;
+    QImage gradient;
+    QImage probMap;
+    QList<QRect> peds;
+  };
 
-    IDLModel(const QList<IDL::Entry> &_d)
-      : m_data(_d)
-    {
-      QHash<int, QByteArray> roles;
-      roles.insert(X, "rx");
-      roles.insert(Y, "ry");
-      roles.insert(Width, "rwidth");
-      roles.insert(Height, "rheight");
-      roles.insert(FileName, "filename");
-      setRoleNames(roles);
-    }
+  DataSetModel(const QFuture<Item> &items)
+    : m_fut(items)
+  {
+    QFutureWatcher<Item> *w = new QFutureWatcher<Item>(this);
+    w->setFuture(m_fut);
+    connect(w, SIGNAL(progressValueChanged(int)), SLOT(onProgress(int)));
+  }
 
-    QVariant data(const QModelIndex &index, int role) const
-    {
-      int i = index.row();
-      switch (role)
-      {
-      case X: return m_data[i].rects[0].x();
-      case Y: return m_data[i].rects[0].y();
-      case Width: return m_data[i].rects[0].width();
-      case Height: return m_data[i].rects[0].height();
-      case FileName: return m_data[i].name;
-      }
-      return QVariant();
-    }
+  QVariant data(const QModelIndex &index, int role) const { return QVariant(); }
+  int rowCount(const QModelIndex &parent) const { return m_items.size(); }
 
-    int rowCount(const QModelIndex &parent) const
-    {
-      return m_data.size();
-    }
-  private:
-    QList<IDL::Entry> m_data;
+  const Item &itemAt(int i) const { return m_items[i]; }
+
+private slots:
+  void onProgress(int progress)
+  {
+    int oldSize = m_items.size();
+    int newSize = m_fut.resultCount();
+    beginInsertRows(QModelIndex(), oldSize, newSize-1);
+    for (int i=oldSize; i<newSize; i++)
+      m_items << m_fut.resultAt(i);
+    endInsertRows();
+  }
+
+private:
+  QFuture<Item> m_fut;
+  QList<Item> m_items;
 };
 
-class IDLImageProviderSrc: public QDeclarativeImageProvider
+class DataSetItemDelegate: public QStyledItemDelegate
 {
-  public:
-    IDLImageProviderSrc(const QDir &dir)
-      : QDeclarativeImageProvider(QDeclarativeImageProvider::Image),
-        m_dir(dir)
-    {
-    }
+public:
+  DataSetItemDelegate(DataSetModel *mdl, QObject *parent = 0): QStyledItemDelegate(parent), m_mdl(mdl) {}
 
-    QImage requestImage(const QString &id, QSize *size, const QSize &requestedSize)
-    {
-      Q_UNUSED(requestedSize);
-      QString filename = m_dir.filePath(id + ".png");
-      QImage img(filename);
-      *size = img.size();
-      return img;
-    }
-  private:
-    QDir m_dir;
+  void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
+  {
+    QStyledItemDelegate::paint(painter, option, index);
+
+    const DataSetModel::Item &item = m_mdl->itemAt(index.row());
+    QPoint base = option.rect.topLeft() + QPoint(10, 10);
+
+    painter->save();
+
+    painter->drawImage(base, item.baseImage);
+
+    painter->setOpacity(0.7);
+    painter->drawImage(base, item.gradient);
+
+    painter->setOpacity(0.5);
+    painter->drawImage(base, item.probMap);
+
+    painter->setOpacity(1);
+    painter->setPen(QPen(Qt::green, 2));
+    foreach (const QRect &r, item.peds)
+      painter->drawRect(r.translated(base).adjusted(0, -5, 0, 5));
+
+    painter->restore();
+  }
+
+  QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const
+  {
+    QSize sh = QStyledItemDelegate::sizeHint(option, index);
+    return QSize(sh.width(), 220);
+  }
+private:
+  DataSetModel *m_mdl;
 };
 
-class IDLImageProviderGrad: public QDeclarativeImageProvider
+DataSetModel::Item loadImage(const IDL::Entry &e)
 {
-  public:
-    IDLImageProviderGrad(const QDir &dir)
-      : QDeclarativeImageProvider(QDeclarativeImageProvider::Image),
-        m_dir(dir)
-    {
-    }
+  DataSetModel::Item item;
 
-    QImage requestImage(const QString &id, QSize *size, const QSize &requestedSize)
-    {
-      Q_UNUSED(requestedSize);
-      QString filename = m_dir.filePath(id + ".png");
-      QImage img(filename);
-      QRect rect(0, 0, img.width(), img.height());
-      img = showGradient(gradient(img, rect));
-      rgb_stretch(img, rect);
-      *size = img.size();
-      return img;
-    }
-  private:
-    QDir m_dir;
-};
+  item.baseImage.load(e.filename);
 
+  QRect rect(0, 0, item.baseImage.width(), item.baseImage.height());
+  item.gradient = showGradient(gradient(item.baseImage, rect));
+  rgb_stretch(item.gradient, rect);
+
+  item.probMap = classifier->probMap(item.baseImage);
+  item.peds = e.rects;
+
+  return item;
+}
 
 int main(int argc, char **argv)
 {
@@ -116,16 +125,18 @@ int main(int argc, char **argv)
   try
   {
     QDir srcDir = QFileInfo(argv[1]).dir();
-    QList<IDL::Entry> objects = IDL::load(argv[1]);
-    IDLModel objectsModel(objects);
+    QList<IDL::Entry> entries = IDL::load(argv[1]);
 
-    QDeclarativeView view;
-    view.rootContext()->setContextProperty("files", &objectsModel);
-    view.engine()->addImageProvider(QLatin1String("src"), new IDLImageProviderSrc(srcDir));
-    view.engine()->addImageProvider(QLatin1String("grad"), new IDLImageProviderGrad(srcDir));
-    view.setSource(QUrl("qrc:///idlviewer.qml"));
-    view.setResizeMode(QDeclarativeView::SizeRootObjectToView);
-    view.resize(640, 480);
+    classifier = Model::load("model.txt");
+    Q_ASSERT(classifier != 0);
+
+    DataSetModel mdl(QtConcurrent::mapped(entries, loadImage));
+
+    QListView view;
+    view.setModel(&mdl);
+    view.setItemDelegate(new DataSetItemDelegate(&mdl, &view));
+    view.setUniformItemSizes(true);
+    view.setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     view.show();
 
     return app.exec();
@@ -137,3 +148,5 @@ int main(int argc, char **argv)
     return 1;
   }
 }
+
+#include "main_idlviewer.moc"
